@@ -1,8 +1,10 @@
 # Power BI Desktop versioning with Git
 ## Requirements
 * Power BI files saved as .pbip format
-    * Go to File > Options and settings > Options > Preview features and check the box next to Power BI Project (.pbip) save option
-    * Keep unchecked the options: `<to-be-defined>`
+    * Go to File > Options and settings > Options > Preview features and check the box next to 'Power BI Project (.pbip) save option'
+    * Keep unchecked the options:
+        * 'Store semantic model using TMDL format'
+        * 'Store reports using enhanced metadata format (PBIR)' 
 
 ## Basic Git Commands
 `<to-be-defined>`
