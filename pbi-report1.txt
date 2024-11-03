@@ -1,3 +1,5 @@
 Hello, this represents the first report in Power BI
 
 The page 1 has been fixed
+
+This is a seconde page created. A new visual has been added.
