@@ -1,0 +1,3 @@
+Hello, this represents the first report in Power BI
+
+A new report has been added.
