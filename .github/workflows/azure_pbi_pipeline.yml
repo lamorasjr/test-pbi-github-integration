@@ -1,71 +1,63 @@
-trigger: none
+name: Build Datasets
 
-pool:
-  vmimage: 'windows-latest'
+on:
+  workflow_dispatch:
 
-stages:
- - stage: Build
-   jobs:
+jobs:
+  build-datasets:
+    runs-on: windows-latest
 
-    - job: Build_Datasets
-      steps:
-        - checkout: self
-          path: 'self'
-        - task: PowerShell@2
-          displayName: 'Download Tabular Editor and Default Rules'
-          inputs:
-            targetType: inline
-            script: |     
-              $path = "$(Build.SourcesDirectory)"                       
-              $tempPath = "$path\_temp"
-              $toolPath = "$path\_tools\TE"
-              New-Item -ItemType Directory -Path $tempPath -ErrorAction SilentlyContinue | Out-Null              
-              
-              Write-Host "##[debug]Downloading Tabular Editor binaries"
-              $downloadUrl = "https://github.com/TabularEditor/TabularEditor/releases/latest/download/TabularEditor.Portable.zip"
-              $zipFile = "$tempPath\TabularEditor.zip"
-              Invoke-WebRequest -Uri $downloadUrl -OutFile $zipFile
-              Expand-Archive -Path $zipFile -DestinationPath $toolPath -Force            
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      with:
+        path: self
 
-              Write-Host "##[debug]Downloading Dataset default rules"
-              $downloadUrl = "https://raw.githubusercontent.com/microsoft/Analysis-Services/master/BestPracticeRules/BPARules.json"
-              Invoke-WebRequest -Uri $downloadUrl -OutFile "$tempPath\Rules-Dataset.json"     
-        - task: PowerShell@2
-          displayName: 'Run Dataset Rules'
-          inputs:
-            targetType: inline
-            script: |
-              $path = "$(Build.SourcesDirectory)"
-              $tempPath = "$path\_temp"
-              $toolPath = "$path\_Tools\TE\TabularEditor.exe"
-              $rulesPath = "$path\Rules-Dataset.json"
+    - name: Download Tabular Editor and Default Rules
+      run: |
+        $path = "${{ github.workspace }}"                      
+        $tempPath = "$path\_temp"
+        $toolPath = "$path\_tools\TE"
+        New-Item -ItemType Directory -Path $tempPath -ErrorAction SilentlyContinue | Out-Null
+        
+        Write-Host "Downloading Tabular Editor binaries"
+        $downloadUrl = "https://github.com/TabularEditor/TabularEditor/releases/latest/download/TabularEditor.Portable.zip"
+        $zipFile = "$tempPath\TabularEditor.zip"
+        Invoke-WebRequest -Uri $downloadUrl -OutFile $zipFile
+        Expand-Archive -Path $zipFile -DestinationPath $toolPath -Force
 
-              if (!(Test-Path $rulesPath))
-              {
-                  Write-Host "Running downloaded rules"
-                  $rulesPath = "$tempPath\Rules-Dataset.json"
-              }
+        Write-Host "Downloading Dataset default rules"
+        $downloadUrl = "https://raw.githubusercontent.com/microsoft/Analysis-Services/master/BestPracticeRules/BPARules.json"
+        Invoke-WebRequest -Uri $downloadUrl -OutFile "$tempPath\Rules-Dataset.json"
+      shell: pwsh
 
-              $itemsFolders = Get-ChildItem  -Path $path -recurse -include ("*.pbidataset", "*.pbism")
+    - name: Run Dataset Rules
+      run: |
+        $path = "${{ github.workspace }}"
+        $tempPath = "$path\_temp"
+        $toolPath = "$path\_Tools\TE\TabularEditor.exe"
+        $rulesPath = "$path\Rules-Dataset.json"
 
-              foreach($itemFolder in $itemsFolders)
-              {	
-                  $itemPath = "$($itemFolder.Directory.FullName)\definition"
+        if (!(Test-Path $rulesPath)) {
+            Write-Host "Running downloaded rules"
+            $rulesPath = "$tempPath\Rules-Dataset.json"
+        }
 
-                  if (!(Test-Path $itemPath))
-                  {
-                      $itemPath = "$($itemFolder.Directory.FullName)\model.bim"
+        $itemsFolders = Get-ChildItem -Path $path -recurse -include ("*.pbidataset", "*.pbism")
 
-                      if (!(Test-Path $itemPath))
-                      {
-                          throw "Cannot find semantic model definition."
-                      }
+        foreach ($itemFolder in $itemsFolders) {
+            $itemPath = "$($itemFolder.Directory.FullName)\definition"
 
-                  }
+            if (!(Test-Path $itemPath)) {
+                $itemPath = "$($itemFolder.Directory.FullName)\model.bim"
 
-                  Write-Host "##[group]Running rules for: '$itemPath'"
+                if (!(Test-Path $itemPath)) {
+                    throw "Cannot find semantic model definition."
+                }
+            }
 
-                  Start-Process -FilePath "$toolPath" -ArgumentList """$itemPath"" -A ""$rulesPath"" -V" -NoNewWindow -Wait
+            Write-Host "Running rules for: '$itemPath'"
 
-                  Write-Host "##[endgroup]"
-              }
+            Start-Process -FilePath "$toolPath" -ArgumentList """$itemPath"" -A ""$rulesPath"" -V" -NoNewWindow -Wait
+        }
+      shell: pwsh
